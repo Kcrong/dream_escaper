@@ -144,7 +144,7 @@ def send_info(client, data):
     client.vs.sock.send(data)
 
 
-def exit_user(client, data):
+def exit_user(client):
     print "%s 님이 퇴장하셨습니다." % client.nick
 
     try:
@@ -213,7 +213,7 @@ def get_client(client_sock, addr):
             if e.errno != errno.ECONNRESET:
                 raise
 
-            exit_user(client, None)
+            exit_user(client)
             break
 
         try:
