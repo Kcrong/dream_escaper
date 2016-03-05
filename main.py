@@ -1,5 +1,6 @@
 # -*-coding: utf-8 -*-
 from socket import *
+import errno
 from collections import defaultdict
 
 import sys
@@ -38,12 +39,22 @@ class GameClient:
         # vs 는 파트너의 GameClient 객체
         self.vs = vs
 
+    def finish_battle(self):
+        self.vs = None
+
     @classmethod
     def find_client(cls, nick):
         try:
             return GameClient.nick_index[nick][0]
         except IndexError:
             return None
+
+    @classmethod
+    def remove_client(cls, nick):
+        try:
+            del GameClient.nick_index[nick]
+        except KeyError:
+            pass
 
 
 def find_client(name):
@@ -133,17 +144,28 @@ def send_info(client, data):
     client.vs.sock.send(data)
 
 
+def exit_user(client, data):
+    print "%s 님이 퇴장하셨습니다." % client.nick
+
+    try:
+        client.vs.sock.send('X')
+    except AttributeError:
+        # 만약 client.vs.sock 이 None 이라면 (상대가 없는 상태라면)
+        pass
+
+    client.remove_client()
+    return
+
+
 command_dict = {
     'R': match_random,
     'F': match_client,
     'S': send_info,
 }
 
-"""
-    위 방법으로 Switch Case 을 구현했으나, 함수별로 인자값 관리가 되질 않아 쓸데없는 비용이 발생한다.
-    :keyword
-"""
 
+# 위 방법으로 Switch Case 을 구현했으나, 함수별로 인자값 관리가 되질 않아 쓸데없는 비용이 발생한다.
+# --> **args 사용
 
 def get_client(client_sock, addr):
     client = None
@@ -168,22 +190,39 @@ def get_client(client_sock, addr):
             - Fail f
             """
 
+    # 클라이언트 닉네임 등록
     while client is None:
         data = client_sock.recv(1024)
+        if len(data) == 0:
+            break
 
         client = add_client(client_sock, addr, data)
 
+    # 클라이언트 게임 이용 중
     while client is not None:
-        tmp = client.sock.recv(1024)
-        if tmp == '':
-            return
-        command = tmp[0]
+        try:
+            tmp = client.sock.recv(1024)
+            command = tmp[0]
+            data = tmp[1:]
 
-        data = tmp[1:]
+        except IndexError:
+            break
+
+        except error as e:
+            # 난 reset by peer 에러만 본다.
+            if e.errno != errno.ECONNRESET:
+                raise
+
+            exit_user(client, None)
+            break
+
         try:
             command_dict[command](client, data)
         except KeyError:
             client.sock.send(how_to())
+            # escape loop
+            exit_user(client)
+            break
 
     print "%s is Quit." % addr
 
