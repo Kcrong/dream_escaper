@@ -26,6 +26,7 @@ class GameClient:
         # 자신의 소켓
         self.sock = sock
         self.nick = nick
+        self.addr = addr
 
         # 현재 대전 중인 상대
         self.vs = None
@@ -157,10 +158,14 @@ def exit_user(client):
     return
 
 
+def end_game(client, data=None):
+    client.finish_battle()
+
 command_dict = {
     'R': match_random,
     'F': match_client,
     'S': send_info,
+    'D': end_game,
 }
 
 
