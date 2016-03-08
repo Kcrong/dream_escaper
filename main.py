@@ -153,7 +153,7 @@ def exit_user(client):
         # 만약 client.vs.sock 이 None 이라면 (상대가 없는 상태라면)
         pass
 
-    client.remove_client()
+    client.remove_client(client.nick)
     return
 
 
